@@ -1,16 +1,34 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, Button } from "react";
 import { View, Text, TextInput, Pressable } from "react-native";
 import { StatusBar } from "react-native";
 import OTPVerification from "./OTPVerification";
+import { Auth } from "../firebase";
+import {
+  signInWithPhoneNumber,
+  RecaptchaVerifier,
+  onAuthStateChanged,
+} from "firebase/auth";
+import auth from "@react-native-firebase/auth";
 
 const LoginScreen = ({ navigation }) => {
   const [mobileNumber, setMobileNumber] = useState("");
   const [showOTPVerification, setShowOTPVerification] = useState(false);
   const [otp, setOtp] = useState("");
+  const [confirm, setConfirm] = useState(null);
 
   useEffect(() => {
     setOtp("");
   }, [showOTPVerification]);
+
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, (authUser) => {
+      //   console.log("authUser in login UseEffect:- ", authUser);
+      if (authUser) {
+        navigation.replace("Home");
+      }
+    });
+    return unsubscribe;
+  }, []);
 
   const handleNext = () => {
     if (mobileNumber.length === 10 && /^\d+$/.test(mobileNumber)) {
@@ -20,8 +38,10 @@ const LoginScreen = ({ navigation }) => {
     }
   };
 
-  const handleOTPVerification = () => {
-    // Validate OTP (You may want to implement proper OTP validation logic here)
+  const SendOtp = async () => {
+    const confirmation = await auth().signInWithPhoneNumber(mobileNumber);
+    setConfirm(confirmation);
+
     if (otp.length === 6 && /^\d+$/.test(otp)) {
       // Navigate to HomeScreen upon successful OTP verification
       navigation.replace("Home");
@@ -31,11 +51,29 @@ const LoginScreen = ({ navigation }) => {
     }
   };
 
+  if (!confirm) {
+    return (
+      <Button
+        title="Phone Number Sign In"
+        onPress={() => signInWithPhoneNumber("+1 650-555-3434")}
+      />
+    );
+  }
+
+  const confirmCode = async () => {
+    try {
+      await confirm.confirm(code);
+    } catch (error) {
+      console.log("Invalid code.");
+    }
+  };
+
   return showOTPVerification ? (
     <OTPVerification
       otp={otp}
       setOtp={setOtp}
       handleOTPVerification={handleOTPVerification}
+      navigation={navigation}
     />
   ) : (
     <View
@@ -72,12 +110,13 @@ const LoginScreen = ({ navigation }) => {
           backgroundColor: "#1189d9",
           borderColor: "#fff",
         }}
-        onPress={handleNext}
+        onPress={SendOtp}
       >
         <Text style={{ fontSize: 18, color: "#fff", fontWeight: "600" }}>
-          Next
+          Send OTP
         </Text>
       </Pressable>
+      <View id="recaptcha-qr-scanner"></View>
       <StatusBar />
     </View>
   );

@@ -9,7 +9,7 @@ const OTPVerification = ({
   navigation,
 }) => {
   const handleBack = () => {
-    navigation.goBack();
+    navigation.replace("Login");
   };
 
   return (
